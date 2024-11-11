@@ -1,0 +1,37 @@
+<title>Panoptigon | Garden scraps</title>
+<link rel="stylesheet" href="../../style.css">
+
+<h1>Panoptigon</h1>
+
+<style>
+    canvas {
+        background-color: black;
+        outline: white 1px solid;
+        width: 800px;
+        height: 600px;
+    }
+</style>
+<div id="wasm-example">
+<script type="module">
+    import init from "./pkg/hello_webgpu.js";
+    init().then(() => {
+        console.log("WASM Loaded");
+    });
+</script>
+</div>
+
+<h2>Controls</h2>
+<ul>
+<li>Drag mouse to pan camera</li>
+<li>Scroll to zoom in and out</li>
+<li>Hold shift while dragging or scrolling to change outer camera</li>
+</ul>
+
+<h2>Description</h2>
+<p>todo</p>
+
+<h2>Credits</h2>
+<p>todo</p>
+
+<br />
+<a href="../index.html">Back to scraps</a>

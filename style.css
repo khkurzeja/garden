@@ -1,0 +1,21 @@
+html, body {
+    height: 100%;
+}
+
+html {
+    display: table;
+    margin: auto;
+}
+
+body {
+    background-color: black;
+    color: white;
+    max-width: 40em;
+    display: table-cell;
+    /*vertical-align: middle;*/
+    padding: 2em;
+}
+
+a {
+    color: antiquewhite;
+}

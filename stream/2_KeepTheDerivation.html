@@ -1,0 +1,51 @@
+<title>Don't lose the derivation | Garden stream</title>
+<link rel="stylesheet" href="../style.css">
+
+<h1>Don't lose the derivation</h1>
+
+<p>
+It is often vitally important that a program's source code is understandable to people who did not write the original code.
+Thus, the source code should communicate the author's understanding of how it works. 
+Sometimes, but often not, the author will write comments describing how the code works. 
+These comments are often incomplete and may become incorrect as the code is modified.
+</p>
+
+<p>
+I believe that source code should include its derivation. 
+Ideally, the derivation is not just appended to the code as a comment or as an external link,
+but, in some significant way, the derivation should <b>be</b> the code.
+</p>
+
+<p>
+As an example, I typically work on geometry based code.
+I frequently read and write code that was derived on paper and then translated into traditional source code.
+The derivation is never preserved in the translation.
+The derivation often involves drawing one or more geometric diagrams that represent the transformation of input values into the desired output values.
+Arithmetic formulas are produced from the geometric procedures, and these formulas are often simplified algebraically before they are written as code.
+Thus, the source code not only loses the visual, geometric information from the derivation, but the derived formulas are algebraically optimized into an even more obfuscated form.
+Geometric diagrams and algebra are difficult enough to understand on their own.
+How can we expect future programmers to understand code written like this?
+</p>
+
+<p>
+The steps taken to draw the geometric diagrams contain all of the information needed to compute the desired output. 
+In other words, the geometric diagrams (or rather, the steps taken to create them) should be recognized as valid source code of the program.
+Similarly, the algebraic simplifications should also be considered a valid part of the source code.
+</p>
+
+<p>
+Unfortunately, current programming environments do not empower programmers to use these derivations as source code.
+So, programmers are forced to translate these derivations into standard programming langages, while losing important information in the process.
+Much like the compilation of standard text-based code into machine code.
+</p>
+
+<p>
+How can future programming environments enable programmers to preserve their entire derivations as source code? 
+</p>
+
+<p>
+Not everyone works in geometry, so an environment that works well for me may not work well for others.
+It seems likely that domain specific languages and environments will need to be designed to enable working in various fields.
+</p>
+
+<a href="index.html">Back to stream</a>
