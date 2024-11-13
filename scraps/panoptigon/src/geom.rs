@@ -25,6 +25,9 @@ impl Vec2 {
 
     pub fn as_vec(self) -> Vec3 { Vec3::new(self.x, self.y, 0.0) }
     pub fn as_pt(self) -> Vec3 { Vec3::new(self.x, self.y, 1.0) }
+
+    pub fn to_arr_f32(self) -> [f32; 2] { [self.x as f32, self.y as f32] }
+    pub fn to_arr_f64(self) -> [f64; 2] { [self.x as f64, self.y as f64] }
 }
 
 impl ops::Neg for Vec2 {

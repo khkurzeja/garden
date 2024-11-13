@@ -27,6 +27,15 @@ pub fn create_index_buffer(device: &Device, slice: &[u8]) -> Buffer {
         }
     )
 }
+pub fn create_dynamic_vertex_buffer(device: &Device, slice: &[u8]) -> Buffer {
+    device.create_buffer_init(
+        &wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: slice,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        }
+    )
+}
 
 pub struct WindowStuff {
     pub window: Window,
@@ -181,24 +190,26 @@ pub fn run_events(event_loop: EventLoop<()>, window: &Window, window_events: &mu
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BasicVertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub position: [f32; 2],
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct BasicInstance {
+    pub center: [f32; 2],
+    pub radius: f32,
+    pub color: [f32; 3],
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BasicUniforms {
-    pub center: [f32; 2],
-    pub radius: f32,
-    padding: [f32; 1],  // Total size needs to be a multiple of 4 f32s
+    pub screen_to_clip: [f32; 12],  // 12 instead of 9, because columns each have an entry of padding.
 }
 impl BasicUniforms {
     pub fn new() -> Self {
         Self {
-            center: [0.0, 0.0],
-            radius: 0.0,
-            padding: [0.0],
+            screen_to_clip: [0.0; 12],
         }
     }
 }
@@ -215,7 +226,7 @@ pub fn make_basic_pipeline(device: &wgpu::Device, target_format: TextureFormat, 
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(include_str!("shader/basic_shader.wgsl").into()),
     });
-    
+
     let uniform_buffer = device.create_buffer_init(
         &wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -227,7 +238,7 @@ pub fn make_basic_pipeline(device: &wgpu::Device, target_format: TextureFormat, 
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -270,11 +281,27 @@ pub fn make_basic_pipeline(device: &wgpu::Device, target_format: TextureFormat, 
                         wgpu::VertexAttribute {
                             offset: 0,
                             shader_location: 0,
-                            format: wgpu::VertexFormat::Float32x3,
+                            format: wgpu::VertexFormat::Float32x2,
+                        },
+                    ]
+                },
+                wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<BasicInstance>() as wgpu::BufferAddress,
+                    step_mode: wgpu::VertexStepMode::Instance,
+                    attributes: &[
+                        wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 1,
+                            format: wgpu::VertexFormat::Float32x2,
+                        },
+                        wgpu::VertexAttribute {
+                            offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                            shader_location: 2,
+                            format: wgpu::VertexFormat::Float32,
                         },
                         wgpu::VertexAttribute {
                             offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                            shader_location: 1,
+                            shader_location: 3,
                             format: wgpu::VertexFormat::Float32x3,
                         },
                     ]

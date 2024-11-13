@@ -68,24 +68,30 @@ pub async fn run()
     // === Data stuff ===
 
     type Vertex = gfx::BasicVertex;
-    let verts: &[Vertex] = &[
-        Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [1.0, 1.0, 1.0], },
-        Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [1.0, 0.0, 0.0], },
-        Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.0, 1.0, 0.0], },
-        Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.0, 0.0, 1.0], },
-        Vertex { position: [0.44147372, 0.2347359, 0.0], color: [1.0, 0.0, 1.0], },
-    ];
-    let indices: &[u16] = &[
-        0, 1, 4,
-        1, 2, 4,
-        2, 3, 4,
-    ];
+    let mut verts = vec![];
+    let mut indices = vec![];
+    let num_sides = 20;
+    verts.push(Vertex { position: [0.0, 0.0] });
+    for i in 0..num_sides {
+        let t = i as f64 / (num_sides - 1) as f64 * std::f64::consts::TAU;
+        verts.push(Vertex { position: Vec2::new(t.cos(), t.sin()).to_arr_f32() });
+        indices.push(0);
+        indices.push(i as u16);
+        indices.push((i + 1) % (num_sides + 1) as u16);
+    }
+    
+    let mut instances = vec![];
+    for j in 0..10 {
+        for i in 0..10 {
+            instances.push(gfx::BasicInstance {
+                center: [i as f32 / 9.0 * 2.0 - 1.0, j as f32 / 9.0 * 2.0 - 1.0], 
+                radius: 5.0 as f32,
+                color: [i as f32 / 9.0, j as f32 / 9.0, 0.0],
+            });
+        }
+    }
 
-    let mut uniforms = gfx::BasicUniforms::new();
-    uniforms.center = [400.0, 300.0];
-    uniforms.radius = 10.0;
-
-    let basic_pipeline = gfx::make_basic_pipeline(&device, surface_config.format, uniforms);
+    let basic_pipeline = gfx::make_basic_pipeline(&device, surface_config.format, gfx::BasicUniforms::new());
 
     type PosVert = gfx::PositionVertex;
     let grid_verts: &[PosVert] = &[
@@ -103,27 +109,32 @@ pub async fn run()
 
     // === Init wgpu stuff ===
 
-    //**TODO: I could have some helper functions to make these into one-liners.
-    let vertex_buffer = gfx::create_vertex_buffer(&device, bytemuck::cast_slice(verts));
-    let index_buffer = gfx::create_index_buffer(&device, bytemuck::cast_slice(indices));
+    let vertex_buffer = gfx::create_vertex_buffer(&device, bytemuck::cast_slice(verts.as_slice()));
+    let index_buffer = gfx::create_index_buffer(&device, bytemuck::cast_slice(indices.as_slice()));
+    let instance_buffer = gfx::create_dynamic_vertex_buffer(&device, bytemuck::cast_slice(instances.as_slice()));
 
     let grid_vertex_buffer = gfx::create_vertex_buffer(&device, bytemuck::cast_slice(grid_verts));
     let grid_index_buffer = gfx::create_index_buffer(&device, bytemuck::cast_slice(grid_indices));
 
     struct State {
+        frame_count: usize,
         map_cam: Frame2,
         cam: Frame2,
         input: input::Input,
+        instances: Vec<gfx::BasicInstance>,
     }
     let mut state = State {
+        frame_count: 0,
         map_cam: Frame2::identity(),
         cam: Frame2::identity().local_dilated(2.0),
         input: input::Input::new(),
+        instances,
     };
 
     let update = |state: &mut State, width: f64, height: f64|
     {
         let input = &state.input;
+        let instances = &mut state.instances;
         let map_cam = &mut state.map_cam;
         let cam = &mut state.cam;
         let screen_to_clip = screen_to_clip_frame(width, height);
@@ -172,13 +183,22 @@ pub async fn run()
                 }
             }
         }
+
+        // Move points
+        let frame_count = state.frame_count;
+        for i in 0..instances.len() {
+            let dx = ((frame_count + i*i) as f32 * 0.01).sin() / 400.0;
+            let dy = ((frame_count + i*i) as f32 * 0.01).cos() / 400.0;
+            instances[i].center[0] += dx;
+            instances[i].center[1] += dy;
+        }
     };
 
     let render = |state: &mut State, width: f32, height: f32| -> Result<(), wgpu::SurfaceError> 
     {
         // Update uniforms
         let map_cam = &mut state.map_cam;
-        let cam = &mut state.cam;
+        let cam = &mut state.cam;        
         let mut grid_uniforms = gfx::PanoptigonGridUniforms::new();
         {
             grid_uniforms.camera = [
@@ -205,6 +225,29 @@ pub async fn run()
             ];
         }
         queue.write_buffer(&grid_pipeline.uniform_buffer, 0, bytemuck::cast_slice(&[grid_uniforms]));
+
+        // Make copy of instances where centers are mapped to screen space. 
+        // Would be nice to avoid the copy, but meh.
+        let mut instances = state.instances.clone();
+        for instance in &mut instances {
+            let p = full_unmap(Vec3::new(instance.center[0] as f64, instance.center[1] as f64, 1.0), screen_to_clip_frame(width as f64, height as f64), *map_cam, *cam);
+            instance.center = [p.x as f32, p.y as f32];
+        }
+        queue.write_buffer(&instance_buffer, 0, bytemuck::cast_slice(instances.as_slice()));
+
+        let mut basic_uniforms = gfx::BasicUniforms::new();
+        {
+            let sx = 2.0 / width;
+            let sy = -2.0 / height;
+            let tx = -1.0;
+            let ty = 1.0;
+            basic_uniforms.screen_to_clip = [
+                sx,  0.0, 0.0, 420.0,
+                0.0, sy,  0.0, 420.0,
+                tx,  ty,  1.0, 420.0,
+            ];
+        }
+        queue.write_buffer(&basic_pipeline.uniform_buffer, 0, bytemuck::cast_slice(&[basic_uniforms]));
 
         let output = surface.get_current_texture()?;
 
@@ -237,28 +280,29 @@ pub async fn run()
             render_pass.set_index_buffer(grid_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..grid_indices.len() as u32, 0, 0..1);
         }
-        // {
-        //     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        //         label: Some("Render Pass"),
-        //         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-        //             view: &view,
-        //             resolve_target: None,
-        //             ops: wgpu::Operations {
-        //                 load: wgpu::LoadOp::Load,
-        //                 store: wgpu::StoreOp::Store,
-        //             },
-        //         })],
-        //         depth_stencil_attachment: None,
-        //         occlusion_query_set: None,
-        //         timestamp_writes: None,
-        //     });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
 
-        //     render_pass.set_pipeline(&basic_pipeline.render_pipeline);
-        //     render_pass.set_bind_group(0, &basic_pipeline.uniform_bind_group, &[]);
-        //     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-        //     render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        //     render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
-        // }
+            render_pass.set_pipeline(&basic_pipeline.render_pipeline);
+            render_pass.set_bind_group(0, &basic_pipeline.uniform_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..instances.len() as _);
+        }
     
         // submit will accept anything that implements IntoIter
         queue.submit(std::iter::once(encoder.finish()));
@@ -285,6 +329,7 @@ pub async fn run()
                     Err(wgpu::SurfaceError::Timeout) => {},  // This happens when the a frame takes too long to present
                 }
                 state.input.end_frame();
+                state.frame_count += 1;
             },
             WindowEvent::Resized(physical_size) => {
                 if physical_size.width > 0 && physical_size.height > 0 {

@@ -20,10 +20,10 @@ pollster = "0.3"
 bytemuck = { version = "1.16", features = [ "derive" ] }
 anyhow = "1.0"
 
-[dependencies.image]
-version = "0.24"
-default-features = false
-features = ["png", "jpeg"]
+#[dependencies.image]
+#version = "0.24"
+#default-features = false
+#features = ["png", "jpeg"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
@@ -36,3 +36,8 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Element",
 ]}
+
+[profile.release]
+lto = true
+#opt-level = 's'
+opt-level = 'z'
