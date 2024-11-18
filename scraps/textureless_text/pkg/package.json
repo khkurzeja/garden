@@ -1,0 +1,15 @@
+{
+  "name": "textureless_text",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "textureless_text_bg.wasm",
+    "textureless_text.js",
+    "textureless_text.d.ts"
+  ],
+  "main": "textureless_text.js",
+  "types": "textureless_text.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
