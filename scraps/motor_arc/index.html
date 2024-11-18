@@ -1,0 +1,37 @@
+<title>Motor arc | Garden scraps</title>
+<link rel="stylesheet" href="../../style.css">
+
+<h1>Motor arc</h1>
+
+<style>
+    canvas {
+        background-color: black;
+        outline: white 1px solid;
+        width: 800px;
+        height: 600px;
+    }
+</style>
+<div id="wasm-example">
+<script type="module">
+    import init from "./pkg/motor_arc.js";
+    init().then(() => {
+        console.log("WASM Loaded");
+    });
+</script>
+</div>
+
+<h2>Controls</h2>
+<ul>
+<li>Drag mouse</li>
+</ul>
+
+<h2>Description</h2>
+<p>
+Stuff
+</p>
+<p>
+<a href="">Source</a>
+</p>
+
+<br />
+<a href="../index.html">Back to scraps</a>

@@ -1,0 +1,38 @@
+<title>Textureless text | Garden scraps</title>
+<link rel="stylesheet" href="../../style.css">
+
+<h1>Textureless text</h1>
+
+<style>
+    canvas {
+        background-color: black;
+        outline: white 1px solid;
+        width: 800px;
+        height: 600px;
+    }
+</style>
+<div id="wasm-example">
+<script type="module">
+    import init from "./pkg/textureless_text.js";
+    init().then(() => {
+        console.log("WASM Loaded");
+    });
+</script>
+</div>
+
+<h2>Description</h2>
+<p>
+Very low effort shader text drawing.
+</p>
+<p>
+<a href="https://github.com/khkurzeja/garden/tree/main/scraps/textureless_text">Source</a>
+</p>
+
+<h2>Credits</h2>
+<p>
+This is almost a direct port of <a href="https://poniesandlight.co.uk/reflect/debug_print_text/">Texture-less Text Rendering by Tim Gfrerer to WGSL</a>.
+The only addition is some basic antialiasing.
+</p>
+
+<br />
+<a href="../index.html">Back to scraps</a>
