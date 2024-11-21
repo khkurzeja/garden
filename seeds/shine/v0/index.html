@@ -1,0 +1,19 @@
+<title>Shine v0 | Garden scraps</title>
+<link rel="stylesheet" href="../../style.css">
+
+<style>
+    canvas {
+        background-color: black;
+        outline: white 1px solid;
+        width: 800px;
+        height: 600px;
+    }
+</style>
+<div id="shine">
+<script type="module">
+    import init from "./pkg/shine.js";
+    init().then(() => {
+        console.log("WASM Loaded");
+    });
+</script>
+</div>
