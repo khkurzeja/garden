@@ -1,8 +1,10 @@
 #![allow(unused_unsafe)]
 
+mod donker;
 mod geom;
 mod gfx;
 mod input;
+mod licht;
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;

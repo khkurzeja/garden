@@ -1,0 +1,370 @@
+<title>Shine JS v0 | Garden scraps</title>
+<link rel="stylesheet" href="../../../style.css">
+
+<h1>Shine JS v0</h1>
+
+<style>
+canvas {
+    background-color: black;
+    outline: white 1px solid;
+}
+</style>
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<br />
+<a href="../index.html">Back to Shine</a>
+
+
+<!-- ==================================================================================================== -->
+
+<script>
+
+class Sprite {
+    constructor() {
+        this.base = null;  // Which sprite is this an instance of? This should have a depth of at most 1, I think. Maybe it could have more depths if we allow partially instantiated sprites. Not now though.
+        //this.arguments = new Map();
+        this.children = [];
+
+        // We don't want to clone named_children and traits for each instance. That would be wasteful.
+        //this.named_children = new Map();  // Map from name to index of child in this.children
+                                          // This allows Sprite to act as both an array and a map.
+        //this.traits = ??;
+    }
+    // eval(args) {
+    //     // For each child.
+    //     // If it is a Param, replace it with its arg.  (note: param name and child name are not the same thing.)
+    //     // Otherwise, if it is a special sprite, run it to get a result.
+    //     let r = new Sprite();
+    //     r.parent = this;
+    //     r.named_children = this.named_children;  // Should I do this ref? Or just make null?
+    //     for (let i = 0; i < this.children.length; ++i) {
+    //         let e = this.children[i];
+    //         let n = e.run(this, args, i);
+    //         r.children.push(e);
+    //     }
+    //     return r;
+    // }
+    to_js() {
+        let code = "";
+        code += "let self = {};";
+        for (child in children) {
+            if (child instanceof Literal) {
+                code += child.value;
+            }
+            else if (child instanceof RefChildAt) {
+                if (child.target == null) {
+                    code += "self["+child.target+"]";
+                } else {
+                    code += "["+child.target+"]";  //???
+                }
+                code += "this";
+            }
+            else if (child instanceof RefChildByName) {
+
+            }
+        }
+        code += "return self;"
+        return code;
+    }
+}
+
+// Special sprites
+// class Parameter {  // note: param name and child name are not the same thing
+//     constructor(name) { this.name=name; }
+//     run(current, args, i) { return args.get(this.name); }  // Error handling?
+//     to_js() { return this.name; }
+// }
+class Make {
+    // Represents the eval of a sprite
+    // call_args is a map from a param name in sprite to a child name in current.
+    constructor(sprite, call_args) { this.sprite=sprite; this.call_args=call_args; }
+    // run(current, args, i) {
+    //     let new_args = new Map();
+    //     this.call_args.forEach((value, key, map) => {
+    //         new_args.set(key, current.children[current.named_children.get(value)]);
+    //     });
+    //     return this.sprite.eval(new_args); 
+    // }
+    to_js() { 
+        // Make sure sprite is compiled.
+        let code = "";
+        // code = sprite_js_name(params)  // For simplicity, lets always pass params in an object? Maybe doesn't matter. I think it just lets me give params in any order.
+        return code;
+    }
+}
+class Edit {
+    constructor() {}
+}
+class Literal {  // Do I need typed literals? Don't think so?
+    constructor(value) { this.value=value; }
+    to_js() { return this.value; }  // Does this always work?
+}
+class RefChildAt {
+    constructor() {}
+}
+class RefChildByName {
+    constructor() {}
+}
+// class Self {
+//     constructor() {}
+//     to_js() { return "this"; }
+// }
+
+//-------------------------------------------------------------------------------------------------
+// When applying a block of arguments to a block,
+// either all or none of the params must be labeled.
+// If they are not labeled, then they are applied in order.
+// Example syntax of defining and applying block:
+// { x, y, 
+//   z: add{mul{x,x}, mul{y, y}}
+// } {3, 7} . z
+// A stmt that writes to the name 'self' behaves like a function with a single return value.
+// { x, y, 
+//   sq = {x, self = mul{x,x}},
+//   z = add{sq{x}, sq{y}}
+// } {3, 7} . z
+//-----------------------------------------------
+// New attempt
+//   All expr constructor params are register indices, except for literal's value and DefBlock's stmt_list.
+class LiteralExpr {
+    constructor(out, value) { this.out=out; this.value=value; }
+}
+class SelfExpr {
+    constructor(out) { this.out=out; }
+}
+class ParentExpr {
+    // ParentExpr is needed to implement closures. The parent is the block being closed on.
+    constructor(out) { this.out=out; }
+}
+class RefByNameExpr {
+    constructor(out, target_expr, name_expr) { this.out=out; this.target_expr=target_expr; this.name_expr=name_expr; }
+}
+class RefByIndexExpr {
+    constructor(out, target_expr, index_expr) { this.out=out; this.target_expr=target_expr; this.index_expr=index_expr; }
+}
+class EditExpr {
+    //**TODO: Edit should probably be a stmt, rather than an expr?
+    //        I'm guessing I made it an expr because my statements currently can't mutate / ref a non-local variable?
+    //        Probably, the best solution is to change Stmt so that name is an expr that can refer to anything.
+    //        Let's ignore that until everything else works though. So, no mutation for now.
+    constructor(out, target_expr, new_value_expr) { this.out=out; this.target_expr=target_expr; this.new_value_expr=new_value_expr; }
+}
+class ApplyExpr {
+    constructor(out, template_block, param_block) { this.out=out; this.template_block=template_block; this.param_block=param_block; }
+}
+class DefBlockExpr {
+    constructor(out, stmt_list) { this.out=out; this.stmt_list=stmt_list; }
+}
+class Stmt {
+    constructor(name, value_expr) { this.name=name; this.value_expr=value_expr; }
+}
+function compile_def(def) {
+    let code = "";
+    code += "function make_thing(params) {\n";
+    // Lets write all values to a tmp array of registers. I can remove this array later when I have something more clever.
+    code += "let regs = [];\n";
+    for (let i = 0; i < def.stmt_list.length; ++i) {
+        let stmt = def.stmt_list[i];
+        let expr = stmt.value_expr;
+        if (expr != null) {
+            code += "regs["+expr.out+"] = ";
+            if (expr instanceof LiteralExpr) {
+                code += expr.value;
+            }
+            else if (expr instanceof SelfExpr) {
+                code += "this";
+            }
+            else if (expr instanceof ParentExpr) {
+                code += "parent";
+            }
+            else if (expr instanceof RefByName) {
+                code += "regs["+expr.target_expr+"][regs["+expr.name_expr+"]]";
+            }
+            else if (expr instanceof RefByIndexExpr) {
+                code += "regs["+expr.target_expr+"][regs["+expr.index_expr+"]]";
+            }
+            else if (expr instanceof EditExpr) {
+                //** Needs thought
+            }
+            else if (expr instanceof ApplyExpr) {
+                // 
+            }
+            else if (expr instanceof DefBlockExpr) {
+                // When a block is defined is when the parent needs to be assigned.
+                let def = {stmt_list: expr.stmt_list};
+                let def_code = compile_def(def);
+                let fn = new Function('a', 'b', 'return a + b');  //**TODO: How can I dynamically list the params?
+            }
+            else {
+                throw new Error("Unknown expression "+expr);
+            }
+            code += "\n";
+        }
+    }
+    code += "}\n";
+    return code;
+}
+//-------------------------------------------------------------------------------------------------
+
+class Graphics {
+    constructor() {
+        //this.editor_only = false;
+    }
+}
+
+// function eval_sprite(sprite, args) {
+//     let r = new Sprite();
+
+//     return r;
+// }
+
+
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let stage = new Stage();
+
+function init() {
+    draw();
+}
+function draw() {
+    requestAnimationFrame(draw);
+
+    ctx.fillStyle = "rgb(200 0 0)";
+    ctx.fillRect(10, 10, 50, 50);
+
+    ctx.fillStyle = "rgb(0 0 200 / 50%)";
+    ctx.fillRect(30, 30, 50, 50);
+}
+window.addEventListener("load", init);
+    
+
+</script>
+
+
+
+<!--
+<script>
+
+// Sprite has States (dictionary)
+// States have keystrips (array)
+// Keystrips have keyframes (dictionary)
+// Keyframes have data and code, including but not limited to graphics and interaction
+//  - I can def the code in JS. If needed, I could use an interpreter.
+//  - Layers are a graphical concept, so sprites/states/keystrips/keyframes don't know about layers.
+
+class SpriteInstance {
+    constructor(sprite, state_name, params) {
+        this.sprite = sprite;
+        this.current_state = sprite.get_state(state_name);
+        this.current_frame = 0;
+        this.data = new Map();  // Let the data be an object? Curious if it can be better optimized when it is struct like.
+    }
+    change_state(name) {
+
+    }
+}
+class Sprite {
+    constructor() {
+        this.states = new Map();
+    }
+    add_state(name, state) { this.states.set(name, state); }
+    get_state(name) { return this.states.get(name); }
+    remove_state(name) { this.states.delete(name); }
+
+}
+class State {
+    constructor() {
+        this.keystrip = new Keystrip();
+    }
+}
+class Keystrip {
+    constructor() {
+        this.keyframes = [];
+    }
+    add_keyframe(keyframe) { this.keyframes.push(keyframe); }
+}
+class Keyframe {
+    constructor() {
+        this.command_list = new CommandList();
+        // Transpiled to optimized js code. Has no graphics or other metadeta.
+        //this.js_fn = null;
+    }
+    //set_code(code) { this.code = code; }
+    //call_code(params) { this.code(params); }
+}
+class Command {
+    // I don't know how to make commands efficient at the moment, so don't worry about it. Make it good in other ways.
+    constructor() {
+        
+    }
+    //run(stage, sprite, state, keyframe) {}
+}
+class CommandList {
+    constructor() {}
+}
+class GraphicsInstance {
+    constructor(){}
+}
+class Graphics {
+    constructor() {
+        this.editor_only = false;
+    }
+}
+//class StageInstance { constructor(){} }
+class Stage {
+    constructor() {
+        this.sprites = new Map();
+        this.sprite_instances = [];
+    }
+}
+
+// Maybe I shouldn't have an editor class? 
+// For now, it might be simplest to just imagine that there is no separate editor and program. They are just one. For now.
+// Maybe, when a particular sprite is not being edited, it is being run. And vice-versa.
+// class Editor {
+//     constructor() {
+//         // The editor stage represents a program's source.
+//         // This source may be "compiled" into a non-editor program.
+//         this.stage = new Stage();
+//     }
+// }
+
+function make_default_sprite() {
+    let sprite = new Sprite();
+    let state = new State();
+    let keyframe = new Keyframe();
+    state.keystrip.add_keyframe(keyframe);
+    sprite.add_state("main", state);
+    return sprite;
+}
+
+
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+//let editor = new Editor();
+let stage = new Stage();
+
+function init() {
+    draw();
+}
+function draw() {
+    requestAnimationFrame(draw);
+
+    ctx.fillStyle = "rgb(200 0 0)";
+    ctx.fillRect(10, 10, 50, 50);
+
+    ctx.fillStyle = "rgb(0 0 200 / 50%)";
+    ctx.fillRect(30, 30, 50, 50);
+}
+window.addEventListener("load", init);
+    
+
+
+//console.log('Hello World');
+
+</script>
+-->
